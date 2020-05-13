@@ -1,38 +1,58 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import GetCountryDataById from "./GetCountryDataById";
 
-export default class GetCountries extends React.Component {
-  state = {
-    Countries: [],
-    SelectedCountry: [],
+function GetCountries(props) {
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [items, setItems] = useState([]);
+
+  const fetchCountries = () => {
+    axios.get("https://api.covid19api.com/countries")
+      .then(
+        (res) => {
+          setIsLoaded(true);
+          setItems(res.data);
+        },
+        (error) => {
+          setIsLoaded(true);
+          setError(error);
+        }
+      )
   };
 
-  componentDidMount() {
-    axios.get(`https://api.covid19api.com/countries`).then(res => {
-      this.setState({Countries: res.data});
-    })
-  }
+  useEffect(() => {
+    fetchCountries();
+  }, []);
 
-  handleChange = (event) => {
-    const CurrentCountry = event.target.value;
-    this.setState({ IsLoading: true }, () => {
-      axios.get(`https://api.covid19api.com/total/dayone/country/${CurrentCountry}/status/confirmed`)
-        .then(result => this.setState({
-          IsLoading: false,
-          SelectedCountry: [...result.data],
-        }));
-    });
-  };
-
-  render() {
+  if (error) {
+    return <div>Error: {error.message}</div>;
+  } else if (!isLoaded) {
+    return <div>Loading...</div>;
+  } else {
+    let selectedLabel, selectedComponent;
+    if (selectedCountry) {
+      selectedLabel = <div className={'current-country'}>Current Country:&nbsp;<strong> {selectedCountry}</strong></div>;
+      selectedComponent = <GetCountryDataById currentCountryData={selectedCountry} />;
+    }
     return (
       <div>
-        <select onChange={this.handleChange}>
-          { this.state.Countries.map(Country => <option value={Country.Slug} key={Country.Slug}>{Country.Country}</option>) }
-        </select>
-        {(this.state.IsLoading) ? <p>Loading</p> : <GetCountryDataById CurrentCountryData={this.state.SelectedCountry} />}
+        <div className={'pick-country'}>
+          <select onChange={(event) => setSelectedCountry(event.target.value)}>
+            {items.map(item => (
+              <option key={item.ISO2} value={item.Slug}>
+                {item.Country}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className={'country-detail'}>
+          {selectedLabel}
+          {selectedComponent}
+        </div>
       </div>
     );
   }
 }
+export default GetCountries;
